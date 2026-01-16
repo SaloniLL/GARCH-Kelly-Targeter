@@ -4,17 +4,14 @@ import numpy as np
 from arch import arch_model
 from volatility_models import data_storage 
 
-# --- PLOTTING SETUP (MUST BE AT THE TOP) ---
 import matplotlib
 try:
-    # Force Windows to use a specific window manager
     matplotlib.use('TkAgg') 
 except:
-    # Fallback if TkAgg is missing
+
     pass
 import matplotlib.pyplot as plt
 
-# --- STEP 2: CUSTOM DATA FEED ---
 class CryptoPandasData(bt.feeds.PandasData):
     lines = ('log_return',)
     params = (
@@ -67,7 +64,7 @@ class PortfolioStrategy(bt.Strategy):
         for ticker in self.tickers:
             data = self.data_feeds[ticker]
             pos = self.getposition(data).size
-            # Calculate current weight (handle zero value case)
+
             current_val = pos * data.close[0]
             current_weight = current_val / portfolio_value if portfolio_value > 0 else 0
             
@@ -100,7 +97,7 @@ class PortfolioStrategy(bt.Strategy):
         total = sum(constrained.values())
         return {n: w / total for n, w in constrained.items()}
 
-# --- BENCHMARK ---
+
 class BenchmarkStrategy(bt.Strategy):
     def __init__(self):
         self.done = False
@@ -110,7 +107,7 @@ class BenchmarkStrategy(bt.Strategy):
                 self.order_target_percent(d, target=0.25)
             self.done = True
 
-# --- UTILITY ---
+
 def setup_cerebro(data_storage, strategy_class):
     cerebro = bt.Cerebro()
     for ticker, df in data_storage.items():
@@ -122,10 +119,8 @@ def setup_cerebro(data_storage, strategy_class):
         if not pd.api.types.is_datetime64_any_dtype(df.index):
             df.index = pd.to_datetime(df.index)
 
-        # 2. If the data says it's 1970, OVERWRITE it with a clean 2025 timeline
-        # This assumes your data is hourly (freq='h')
         if df.index[0].year == 1970:
-            print(f"[{ticker}] ⚠️ REPAIRING TIMESTAMPS: 1970 epoch detected.")
+            print(f"[{ticker}] REPAIRING TIMESTAMPS: 1970 epoch detected.")
             # Create a new index starting from Jan 1, 2025
             clean_index = pd.date_range(start='2025-01-01', periods=len(df), freq='h')
             df.index = clean_index
@@ -151,34 +146,33 @@ def setup_cerebro(data_storage, strategy_class):
     return cerebro
 
 
-# --- MAIN EXECUTION ---
+
 if __name__ == "__main__":
-    # 1. Run GARCH-Kelly
+
     print("Running GARCH-Kelly Strategy...")
     cerebro_garch = setup_cerebro(data_storage, PortfolioStrategy)
     results_garch = cerebro_garch.run()
     
-    # 2. Run Benchmark
+
     print("Running Benchmark Strategy...")
     cerebro_bench = setup_cerebro(data_storage, BenchmarkStrategy)
     results_bench = cerebro_bench.run()
 
-    # 3. Process Data
+
     garch_hrly = pd.Series(results_garch[0].analyzers.all_returns.get_analysis())
     bench_hrly = pd.Series(results_bench[0].analyzers.all_returns.get_analysis())
 
-    # Create Cumulative Series (Handling Dates Automatically)
     garch_value = (1 + garch_hrly).cumprod() * 10000
     bench_value = (1 + bench_hrly).cumprod() * 10000
 
-    # 4. Regime Stats
+
     def get_regime_stats(returns):
         returns = returns.dropna()
         if len(returns) < 5 or returns.std() == 0: return {'Sharpe': 0.0}
         sharpe = (returns.mean() / returns.std()) * np.sqrt(8760) 
         return {'Sharpe': sharpe}
 
-    # Use Benchmark Volatility for Regimes
+
     bench_vol = bench_hrly.rolling(24).std().dropna()
     aligned_g = garch_hrly.loc[bench_vol.index]
     aligned_b = bench_hrly.loc[bench_vol.index]
@@ -198,15 +192,14 @@ if __name__ == "__main__":
     print(f"{'Net Alpha':<15} | ${garch_value.iloc[-1] - bench_value.iloc[-1]:<11.2f} | {'N/A':<10}")
     print("="*45)
 
-    # 5. ROBUST PLOTTING
     print("Generating plot...")
     plt.figure(figsize=(12, 6))
     
-    # Use Pandas plotting to handle DateTime index automatically
+
     garch_value.plot(label='GARCH-Kelly', color='darkorange', linewidth=2)
     bench_value.plot(label='Benchmark', color='gray', linestyle='--', alpha=0.7)
     
-    # Fill Alpha (Using index for x-axis alignment)
+
     plt.fill_between(garch_value.index, garch_value, bench_value, 
                      where=(garch_value > bench_value), color='green', alpha=0.1, label='Alpha')
 
@@ -216,10 +209,11 @@ if __name__ == "__main__":
     plt.legend()
     plt.tight_layout()
 
-    # FAILSAFE: Save image in case window doesn't open
+
     plt.savefig('backtest_results.png')
     print("Plot saved to 'backtest_results.png'")
     
-    # Show window
+    
     print("Attempting to open plot window...")
+
     plt.show(block=True)
