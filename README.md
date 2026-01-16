@@ -1,37 +1,139 @@
 # GARCH-Kelly Crypto Volatility Targeter
 
-A professional-grade algorithmic trading system that uses **GARCH(1,1)** volatility forecasting and the **Kelly Criterion** to dynamically size crypto positions.
+A professional-grade **volatility-targeting portfolio system** for crypto assets, using **GARCH(1,1) forecasting** and **fractional Kelly sizing** to dynamically manage risk and exposure.
 
-##  The Strategy
-This system solves the "Volatility Drag" problem in crypto portfolios. Instead of a static allocation, it adjusts position sizes based on predicted risk:
-1.  **Forecast Risk:** Uses GARCH(1,1) to predict hourly volatility for BTC, ETH, SOL, and BNB.
-2.  **Optimize Weights:** Allocates capital using **Inverse Volatility** (Risk Parity).
-3.  **Size Positions:** Scales exposure using **Fractional Kelly (0.5x)**.
-    * *High Volatility* → Reduces leverage (Cash preservation).
-    * *Low Volatility* → Increases leverage (Alpha capture).
+---
 
-## 🛠️ Tech Stack
-* **Engine:** Backtrader (Event-driven simulation)
-* **Data:** yfinance (Hourly real-time data)
-* **Math:** arch (Statistical forecasting)
-* **Analysis:** Matplotlib & Pandas
+## Overview
 
-## Performance (Backtest: 2023-2025)
-Tested on 2 years of hourly data (BTC, ETH, SOL, BNB).
-* **Net Alpha:** Captured **96%** of the benchmark's massive bull run while maintaining strict risk controls.
-* **Defensive Profile:** Successfully reduced drawdowns during the 2022/2023 crash periods compared to a static hold.
-* **Fee Efficiency:** Implemented a 4-hour rebalance interval and 5% drift threshold to neutralize transaction costs.
+This project addresses the **volatility drag problem** in crypto portfolios.
+Rather than holding static allocations, the system **adapts position sizes in real time** based on forecasted market risk.
 
-##  How to Run
-1.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-2.  Run the backtester:
-    ```bash
-    python real_backtest.py
-    ```
+The result is a portfolio that:
 
-##  Visuals
-![Backtest Results](backtest_results.png)
-*(Note: Run the script to generate the latest equity curve)*
+* Reduces exposure during volatility expansions
+* Scales risk during stable regimes
+* Preserves capital during drawdowns
+* Remains tradable after fees and slippage
+
+---
+
+## Strategy Design
+
+### 1. Volatility Forecasting
+
+* Uses **rolling GARCH(1,1)** models to forecast **hourly volatility**
+* Forecasts are recomputed at each rebalance step to avoid look-ahead bias
+* Fallback to realized volatility ensures robustness under model failure
+
+Assets traded:
+
+* BTC
+* ETH
+* SOL
+* BNB
+
+---
+
+### 2. Risk-Based Allocation (Risk Parity)
+
+* Capital is allocated using **Inverse Volatility weighting**
+* Lower-risk assets receive higher weight
+* Ensures balanced risk contribution across assets
+
+---
+
+### 3. Position Sizing (Fractional Kelly)
+
+* Exposure is scaled using the **Kelly Criterion**
+* Fractional Kelly is applied to control drawdowns
+
+Behavior:
+
+* **High volatility → reduced exposure (capital preservation)**
+* **Low volatility → increased exposure (growth capture)**
+
+> Kelly is used strictly as a **risk scaler**, not as a directional signal.
+
+---
+
+### 4. Execution & Risk Controls
+
+To ensure realism, multiple safeguards are implemented:
+
+* Transaction costs: **0.1% commission**
+* Rebalance interval: **4–8 hours**
+* Drift threshold: **5%**
+* Allocation constraints:
+
+  * Max allocation per asset
+  * Minimum diversification floor
+
+These controls eliminate excessive turnover and fee bleed.
+
+---
+
+## Technology Stack
+
+* **Backtesting Engine:** Backtrader
+* **Market Data:** yfinance (hourly crypto data)
+* **Volatility Models:** arch (GARCH)
+* **Analysis & Visualization:** Pandas, NumPy, Matplotlib
+
+---
+
+## Backtest Results
+
+**Period:** 2023–2025
+**Frequency:** Hourly
+**Assets:** BTC, ETH, SOL, BNB
+
+### Key Findings
+
+* **Risk-adjusted outperformance:**
+  The strategy captured the majority of upside during bullish regimes while reducing drawdowns during crashes.
+
+* **Defensive behavior confirmed:**
+  Volatility targeting reduced portfolio variance during high-risk regimes relative to a static equal-weight benchmark.
+
+* **Fee efficiency:**
+  Rebalance throttling and drift thresholds prevented transaction costs from eroding returns.
+
+> The system behaves as a **capital-preserving allocator**, not a high-turnover alpha engine.
+
+---
+
+## How to Run
+
+### Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run the backtester
+
+```bash
+python real_backtest.py
+```
+
+---
+
+## Project Highlights
+
+* Rolling GARCH forecasting (no look-ahead bias)
+* Kelly-based risk scaling (fractional, drawdown-aware)
+* Transaction-aware execution logic
+* Robust timestamp and data integrity handling
+* Honest benchmark comparison (equal-weight buy & hold)
+
+---
+
+## Notes & Transparency
+
+* This system is **risk-first**, not return-maximizing
+* Zero-correlation assumptions are used for simplicity
+* Designed as a **portfolio risk engine**, not a signal generator
+
+---
+
